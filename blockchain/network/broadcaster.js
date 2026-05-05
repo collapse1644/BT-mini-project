@@ -14,27 +14,38 @@ async function postJson(url, body) {
   return response.json().catch(() => ({}));
 }
 
-async function broadcastBlock(peers, block, selfUrl) {
+function withoutExcludedPeer(peers, excludePeer) {
+  if (!excludePeer) {
+    return peers;
+  }
+
+  const normalizedExclude = excludePeer.replace(/\/+$/, "");
+  return peers.filter((peer) => peer.replace(/\/+$/, "") !== normalizedExclude);
+}
+
+async function broadcastBlock(peers, block, selfUrl, { excludePeer = null } = {}) {
+  const targetPeers = withoutExcludedPeer(peers, excludePeer);
   const payload = { block, from: selfUrl };
   const results = await Promise.allSettled(
-    peers.map((peer) => postJson(`${peer}/receive-block`, payload))
+    targetPeers.map((peer) => postJson(`${peer}/receive-block`, payload))
   );
 
   return results.map((result, index) => ({
-    peer: peers[index],
+    peer: targetPeers[index],
     ok: result.status === "fulfilled",
     error: result.status === "rejected" ? result.reason.message : null
   }));
 }
 
-async function broadcastTransaction(peers, transaction, selfUrl) {
+async function broadcastTransaction(peers, transaction, selfUrl, { excludePeer = null } = {}) {
+  const targetPeers = withoutExcludedPeer(peers, excludePeer);
   const payload = { transaction, from: selfUrl };
   const results = await Promise.allSettled(
-    peers.map((peer) => postJson(`${peer}/transaction`, payload))
+    targetPeers.map((peer) => postJson(`${peer}/transaction`, payload))
   );
 
   return results.map((result, index) => ({
-    peer: peers[index],
+    peer: targetPeers[index],
     ok: result.status === "fulfilled",
     error: result.status === "rejected" ? result.reason.message : null
   }));

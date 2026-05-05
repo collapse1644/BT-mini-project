@@ -11,6 +11,7 @@ const nodeBlockchain = require("./services/nodeBlockchainService");
 
 const app = express();
 const port = Number(process.env.PORT || 5000);
+const host = process.env.HOST || "0.0.0.0";
 const backendRoot = path.resolve(__dirname, "..");
 const configuredUploadDir = process.env.UPLOAD_DIR || "uploads";
 const uploadDir = path.isAbsolute(configuredUploadDir)
@@ -19,7 +20,8 @@ const uploadDir = path.isAbsolute(configuredUploadDir)
 const allowedOrigins = new Set([
   "http://localhost:5173",
   "http://127.0.0.1:5173",
-  process.env.FRONTEND_URL
+  process.env.FRONTEND_URL,
+  ...(process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(",") : [])
 ].filter(Boolean));
 
 app.use(
@@ -72,8 +74,9 @@ async function start() {
   await nodeBlockchain.initialize(mongoose.connection);
   console.log(`Blockchain node ready: ${nodeBlockchain.nodeId}`);
 
-  app.listen(port, () => {
-    console.log(`Backend listening on http://localhost:${port}`);
+  app.listen(port, host, () => {
+    console.log(`Backend listening on ${host}:${port}`);
+    console.log(`Advertised node URL: ${nodeBlockchain.selfUrl}`);
   });
 }
 

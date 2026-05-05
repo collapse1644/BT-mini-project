@@ -1,5 +1,5 @@
 const TARGET_BLOCK_TIME_MS = 10_000;
-const MIN_DIFFICULTY = 1;
+const MIN_DIFFICULTY = 4;
 const MAX_DIFFICULTY = 5;
 
 function calculateDifficulty(latestBlock, now = Date.now()) {

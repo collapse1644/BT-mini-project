@@ -14,7 +14,11 @@ function getNodeId() {
 }
 
 function getSelfUrl() {
-  return (process.env.NODE_URL || `http://localhost:${process.env.PORT || 5000}`).replace(/\/+$/, "");
+  return (process.env.NODE_URL || `http://127.0.0.1:${process.env.PORT || 5000}`).replace(/\/+$/, "");
+}
+
+function getSyncIntervalMs() {
+  return Number(process.env.SYNC_INTERVAL_MS || 5000);
 }
 
 function normalizeText(value) {
@@ -51,6 +55,7 @@ class NodeBlockchainService extends EventEmitter {
     this.peerManager = new PeerManager();
     this.storage = null;
     this.ready = false;
+    this.syncTimer = null;
   }
 
   async initialize(connection) {
@@ -72,6 +77,8 @@ class NodeBlockchainService extends EventEmitter {
     if (this.peerManager.getPeers().length > 0) {
       await this.sync();
     }
+
+    this.startPeriodicSync();
   }
 
   assertReady() {
@@ -103,10 +110,40 @@ class NodeBlockchainService extends EventEmitter {
     }
 
     await this.storage.savePeer(peer);
+    this.sync([peer]).catch((error) => {
+      console.error("Peer sync failed:", error.message);
+    });
     return this.peerManager.getPeers();
   }
 
-  async createSpeedrunTransaction(input, { broadcast = true } = {}) {
+  getBroadcastPeers(excludePeer = null) {
+    const peers = this.peerManager.getPeers();
+    if (!excludePeer) {
+      return peers;
+    }
+
+    const normalizedExclude = excludePeer.replace(/\/+$/, "");
+    return peers.filter((peer) => peer.replace(/\/+$/, "") !== normalizedExclude);
+  }
+
+  startPeriodicSync() {
+    if (this.syncTimer || getSyncIntervalMs() <= 0) {
+      return;
+    }
+
+    this.syncTimer = setInterval(() => {
+      if (this.peerManager.getPeers().length === 0) {
+        return;
+      }
+
+      this.sync().catch((error) => {
+        console.error("Periodic peer sync failed:", error.message);
+      });
+    }, getSyncIntervalMs());
+    this.syncTimer.unref?.();
+  }
+
+  async createSpeedrunTransaction(input, { broadcast = true, excludePeer = null } = {}) {
     this.assertReady();
 
     const player = normalizeText(input.player);
@@ -159,7 +196,7 @@ class NodeBlockchainService extends EventEmitter {
     });
 
     if (broadcast) {
-      broadcastTransaction(this.peerManager.getPeers(), added, this.selfUrl).catch((error) => {
+      broadcastTransaction(this.peerManager.getPeers(), added, this.selfUrl, { excludePeer }).catch((error) => {
         console.error("Transaction broadcast failed:", error.message);
       });
     }
@@ -167,13 +204,13 @@ class NodeBlockchainService extends EventEmitter {
     return added;
   }
 
-  async addTransaction(transactionData, { broadcast = true } = {}) {
+  async addTransaction(transactionData, { broadcast = true, excludePeer = null } = {}) {
     this.assertReady();
     const added = this.blockchain.addTransaction(transactionData);
     await this.storage.savePendingTransactions(this.blockchain.getPendingTransactions());
 
     if (broadcast) {
-      await broadcastTransaction(this.peerManager.getPeers(), added, this.selfUrl);
+      await broadcastTransaction(this.peerManager.getPeers(), added, this.selfUrl, { excludePeer });
     }
 
     return added;
@@ -222,6 +259,9 @@ class NodeBlockchainService extends EventEmitter {
       await this.storage.saveBlock(added);
       await this.storage.savePendingTransactions(this.blockchain.getPendingTransactions());
       this.emit("block", added);
+      broadcastBlock(this.peerManager.getPeers(), added, this.selfUrl, { excludePeer: fromPeer }).catch((error) => {
+        console.error("Relay block failed:", error.message);
+      });
       return { accepted: true, conflict: false, block: added };
     } catch (_error) {
       if (block.index > this.blockchain.getLatestBlock().index) {

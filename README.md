@@ -146,6 +146,70 @@ If a node missed a block, trigger lazy longest-chain sync:
 curl http://localhost:5001/sync
 ```
 
+## Run Across Devices With Tailscale
+
+Each node advertises its own Tailscale URL with `NODE_URL` and learns many peers from `PEERS`. There is no master node.
+
+Node A on `100.119.178.65`:
+
+```env
+PORT=5000
+HOST=0.0.0.0
+NODE_ID=tailscale-node-a
+NODE_URL=http://100.119.178.65:5000
+PEERS=http://100.82.8.118:5000
+SYNC_INTERVAL_MS=5000
+```
+
+Node B on `100.82.8.118`:
+
+```env
+PORT=5000
+HOST=0.0.0.0
+NODE_ID=tailscale-node-b
+NODE_URL=http://100.82.8.118:5000
+PEERS=http://100.119.178.65:5000
+SYNC_INTERVAL_MS=5000
+```
+
+Convenience scripts:
+
+```bash
+npm run server:tailscale:a
+npm run server:tailscale:b
+```
+
+For a frontend on another device, point Vite at the node you want to use:
+
+```bash
+set VITE_API_BASE=http://100.119.178.65:5000
+npm run client
+```
+
+You can add more peers at runtime from either side:
+
+```bash
+curl -X POST http://100.119.178.65:5000/add-peer \
+  -H "Content-Type: application/json" \
+  -d "{\"peer\":\"http://100.82.8.118:5000\"}"
+```
+
+Mine on Node A:
+
+```bash
+curl -X POST http://100.119.178.65:5000/transaction \
+  -H "Content-Type: application/json" \
+  -d "{\"player\":\"MeshRunner\",\"game\":\"Celeste\",\"category\":\"Any%\",\"timeSeconds\":2200,\"videoUrl\":\"https://example.com/mesh.mp4\"}"
+
+curl -X POST http://100.119.178.65:5000/mine
+```
+
+Node B receives the latest block by broadcast. Periodic sync also runs every 5 seconds, so missed broadcasts are repaired by longest-valid-chain conflict resolution:
+
+```bash
+curl http://100.82.8.118:5000/chain
+```
+
 ## API
 
 Submit with a video URL:
@@ -217,10 +281,12 @@ GET  /api/events
 ## Consensus And Sync
 
 - Mining uses nonce-based proof of work.
-- Difficulty adjusts dynamically around a target block time.
+- Difficulty adjusts dynamically around a target block time and defaults to at least four leading zeroes.
 - Nodes broadcast only the newest mined block, not the full chain.
 - If a node receives a future block it cannot append, it lazily syncs from peers.
 - Conflict resolution adopts the longest valid chain only when it is longer and passes full validation.
+- Nodes also run periodic sync every 5 seconds by default.
+- Transactions and accepted blocks are relayed to peers other than the sender, so the network behaves as a mesh instead of a hub-and-spoke setup.
 
 ## Contract
 

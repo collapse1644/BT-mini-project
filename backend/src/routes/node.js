@@ -10,7 +10,8 @@ router.post("/transaction", async (req, res, next) => {
 
     if (req.body.transaction) {
       transaction = await nodeBlockchain.addTransaction(req.body.transaction, {
-        broadcast: !fromPeer
+        broadcast: true,
+        excludePeer: fromPeer
       });
     } else {
       transaction = await nodeBlockchain.createSpeedrunTransaction(
@@ -18,7 +19,7 @@ router.post("/transaction", async (req, res, next) => {
           ...req.body,
           videoReference: req.body.videoReference || req.body.videoUrl || req.body.video
         },
-        { broadcast: !fromPeer }
+        { broadcast: true, excludePeer: fromPeer }
       );
     }
 
@@ -28,6 +29,14 @@ router.post("/transaction", async (req, res, next) => {
       mempoolSize: nodeBlockchain.blockchain.getPendingTransactions().length
     });
   } catch (error) {
+    if (fromPeer && error.message.includes("Duplicate")) {
+      return res.json({
+        success: true,
+        duplicate: true,
+        mempoolSize: nodeBlockchain.blockchain.getPendingTransactions().length
+      });
+    }
+
     if (error.message.includes("Duplicate")) {
       error.statusCode = 409;
     } else if (error.message.includes("Invalid") || error.message.includes("required")) {

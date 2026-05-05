@@ -7,6 +7,9 @@
     "node": "npm --prefix blockchain run node",
     "deploy": "npm --prefix blockchain run deploy",
     "server": "npm --prefix backend run server",
+    "server:5000": "npm --prefix backend run server:5000",
+    "server:5001": "npm --prefix backend run server:5001",
+    "server:5002": "npm --prefix backend run server:5002",
     "client": "npm --prefix frontend run client",
     "install:all": "npm install --prefix blockchain && npm install --prefix backend && npm install --prefix frontend"
   }

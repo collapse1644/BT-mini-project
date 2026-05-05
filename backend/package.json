@@ -5,6 +5,9 @@
   "main": "src/index.js",
   "scripts": {
     "server": "node src/index.js",
+    "server:5000": "set PORT=5000&& set NODE_ID=node-5000&& set NODE_URL=http://localhost:5000&& node src/index.js",
+    "server:5001": "set PORT=5001&& set NODE_ID=node-5001&& set NODE_URL=http://localhost:5001&& set PEERS=http://localhost:5000&& node src/index.js",
+    "server:5002": "set PORT=5002&& set NODE_ID=node-5002&& set NODE_URL=http://localhost:5002&& set PEERS=http://localhost:5000,http://localhost:5001&& node src/index.js",
     "dev": "nodemon src/index.js",
     "seed:demo": "node src/seedDemoMetadata.js"
   },

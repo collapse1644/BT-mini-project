@@ -6,7 +6,8 @@ const mongoose = require("mongoose");
 const morgan = require("morgan");
 const path = require("path");
 const runsRouter = require("./routes/runs");
-const seedDemoMetadata = require("./seedDemoMetadata");
+const nodeRouter = require("./routes/node");
+const nodeBlockchain = require("./services/nodeBlockchainService");
 
 const app = express();
 const port = Number(process.env.PORT || 5000);
@@ -44,12 +45,15 @@ app.post("/api/submit", (req, res) => {
   res.json({ success: true });
 });
 
+app.use("/", nodeRouter);
+app.use("/api", nodeRouter);
 app.use("/api", runsRouter);
 
 app.get("/health", (_req, res) => {
   res.json({
     ok: true,
-    service: "speedrun-verification-backend"
+    service: "speedrun-verification-backend",
+    node: nodeBlockchain.getStatus()
   });
 });
 
@@ -65,10 +69,8 @@ async function start() {
     serverSelectionTimeoutMS: 5000
   });
   console.log("MongoDB connected.");
-  const seeded = await seedDemoMetadata();
-  if (seeded > 0) {
-    console.log(`Seeded ${seeded} demo metadata records.`);
-  }
+  await nodeBlockchain.initialize(mongoose.connection);
+  console.log(`Blockchain node ready: ${nodeBlockchain.nodeId}`);
 
   app.listen(port, () => {
     console.log(`Backend listening on http://localhost:${port}`);

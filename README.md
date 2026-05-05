@@ -13,6 +13,18 @@ A complete local full-stack dApp for submitting speedrun results, validating bas
 
 ```text
 blockchain/
+  core/Block.js
+  core/Blockchain.js
+  core/Transaction.js
+  consensus/proofOfWork.js
+  consensus/difficulty.js
+  network/peerManager.js
+  network/broadcaster.js
+  network/sync.js
+  validation/blockValidation.js
+  validation/chainValidation.js
+  validation/transactionValidation.js
+  storage/db.js
   contracts/SpeedrunRegistry.sol
   scripts/deploy.js
   hardhat.config.js
@@ -26,6 +38,16 @@ frontend/
   src/App.jsx
   src/styles.css
 ```
+
+The Node.js blockchain network is now modular:
+
+- `core/` is pure blockchain logic only.
+- `consensus/` contains nonce-based proof-of-work and dynamic difficulty.
+- `validation/` contains reusable transaction, block, and chain validators.
+- `network/` handles peers, latest-block broadcast, and longest-valid-chain sync.
+- `storage/` persists chain state, mempool, peers, and speedrun metadata to MongoDB.
+
+The older Hardhat/Solidity files remain in the repo, but the Express app now runs as an independent decentralized HTTP blockchain node.
 
 ## Setup
 
@@ -73,6 +95,57 @@ npm run client
 
 Open `http://127.0.0.1:5173`.
 
+## Run A Multi-Node Blockchain Network
+
+Start MongoDB first, then run three backend nodes in separate terminals:
+
+```bash
+npm run server:5000
+npm run server:5001
+npm run server:5002
+```
+
+Node defaults:
+
+- Node A: `http://localhost:5000`
+- Node B: `http://localhost:5001`, peers with Node A
+- Node C: `http://localhost:5002`, peers with Node A and Node B
+
+You can add peers manually:
+
+```bash
+curl -X POST http://localhost:5000/add-peer \
+  -H "Content-Type: application/json" \
+  -d "{\"peer\":\"http://localhost:5001\"}"
+```
+
+Submit a transaction to Node A:
+
+```bash
+curl -X POST http://localhost:5000/transaction \
+  -H "Content-Type: application/json" \
+  -d "{\"player\":\"Astra\",\"game\":\"Celeste\",\"category\":\"Any%\",\"timeSeconds\":2234,\"videoUrl\":\"https://example.com/astra.mp4\"}"
+```
+
+Mine pending transactions on Node A:
+
+```bash
+curl -X POST http://localhost:5000/mine
+```
+
+Check Node B and Node C:
+
+```bash
+curl http://localhost:5001/chain
+curl http://localhost:5002/chain
+```
+
+If a node missed a block, trigger lazy longest-chain sync:
+
+```bash
+curl http://localhost:5001/sync
+```
+
 ## API
 
 Submit with a video URL:
@@ -109,15 +182,45 @@ Live events:
 curl http://localhost:5000/api/events
 ```
 
+Decentralized node APIs:
+
+```bash
+POST /transaction
+POST /mine
+GET  /chain
+POST /receive-block
+POST /add-peer
+GET  /peers
+GET  /sync
+GET  /node/status
+```
+
+The frontend-compatible APIs are still available:
+
+```bash
+POST /api/submit-run
+GET  /api/runs
+GET  /api/events
+```
+
 ## Verification Rules
 
 - `player`, `game`, and `category` must be non-empty.
 - `time` must be an integer from `1` to `36000` seconds.
 - A video upload or `http(s)` video URL is required.
-- The proof hash is `keccak256(player + game + category + time + video)`.
-- Uploaded files use a keccak256 hash of the file bytes as the video proof component.
-- Duplicate proof hashes are rejected by both the backend and the smart contract.
-- Only the backend writes to the contract with the configured local Hardhat private key.
+- The proof hash is `sha256(player + game + category + time + video)`.
+- Uploaded files use a SHA-256 hash of the file bytes as the video proof component.
+- Duplicate transactions are rejected by each node.
+- Submitted runs become transactions, pending transactions live in the mempool, and mining turns them into immutable blocks.
+- Each node independently validates transaction shape, block hashes, previous-hash links, and proof-of-work difficulty.
+
+## Consensus And Sync
+
+- Mining uses nonce-based proof of work.
+- Difficulty adjusts dynamically around a target block time.
+- Nodes broadcast only the newest mined block, not the full chain.
+- If a node receives a future block it cannot append, it lazily syncs from peers.
+- Conflict resolution adopts the longest valid chain only when it is longer and passes full validation.
 
 ## Contract
 

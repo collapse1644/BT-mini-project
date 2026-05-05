@@ -15,16 +15,35 @@ const configuredUploadDir = process.env.UPLOAD_DIR || "uploads";
 const uploadDir = path.isAbsolute(configuredUploadDir)
   ? configuredUploadDir
   : path.resolve(backendRoot, configuredUploadDir);
+const allowedOrigins = new Set([
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+  process.env.FRONTEND_URL
+].filter(Boolean));
 
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:5173"
+    origin(origin, callback) {
+      if (!origin || allowedOrigins.has(origin)) {
+        callback(null, true);
+        return;
+      }
+      callback(new Error(`CORS blocked origin: ${origin}`));
+    },
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true
   })
 );
 app.use(morgan("dev"));
 app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use("/uploads", express.static(uploadDir));
+
+app.post("/api/submit", (req, res) => {
+  console.log("Request received:", req.body);
+  res.json({ success: true });
+});
+
 app.use("/api", runsRouter);
 
 app.get("/health", (_req, res) => {

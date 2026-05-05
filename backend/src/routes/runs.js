@@ -127,6 +127,15 @@ async function getMergedRuns() {
 
 router.post("/submit-run", upload.single("video"), async (req, res, next) => {
   try {
+    console.log("Request received:", {
+      player: req.body.player,
+      game: req.body.game,
+      category: req.body.category,
+      time: req.body.time,
+      videoUrl: req.body.videoUrl || req.body.video || null,
+      videoFile: req.file?.originalname || null
+    });
+
     const input = parseRunInput(req.body);
 
     if (!req.file && !input.videoUrl) {

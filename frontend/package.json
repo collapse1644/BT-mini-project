@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "client": "vite --host 127.0.0.1",
+    "client": "vite --host localhost",
     "build": "vite build",
-    "preview": "vite preview --host 127.0.0.1"
+    "preview": "vite preview --host localhost"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.3.4",

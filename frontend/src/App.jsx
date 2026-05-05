@@ -13,6 +13,19 @@ import {
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
+async function parseJsonResponse(response) {
+  const text = await response.text();
+  if (!text) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch (_error) {
+    return { message: text };
+  }
+}
+
 function shortenHash(hash) {
   if (!hash) return "pending";
   return `${hash.slice(0, 10)}...${hash.slice(-8)}`;
@@ -69,13 +82,14 @@ function App() {
     setError("");
     try {
       const response = await fetch(`${API_BASE}/api/runs`);
-      const payload = await response.json();
+      const payload = await parseJsonResponse(response);
       if (!response.ok) {
         throw new Error(payload.message || "Could not load leaderboard");
       }
       setRuns(payload.runs || []);
       setNetwork(payload.network || null);
     } catch (requestError) {
+      console.error("FETCH ERROR:", requestError);
       setError(requestError.message);
     } finally {
       setLoadingRuns(false);
@@ -123,7 +137,8 @@ function App() {
         method: "POST",
         body
       });
-      const payload = await response.json();
+      const payload = await parseJsonResponse(response);
+      console.log(payload);
 
       if (!response.ok) {
         throw new Error(payload.message || "Submission failed");
@@ -135,6 +150,7 @@ function App() {
       await loadRuns();
       setActivePage("leaderboard");
     } catch (submitError) {
+      console.error("FETCH ERROR:", submitError);
       setError(submitError.message);
     } finally {
       setSubmitting(false);

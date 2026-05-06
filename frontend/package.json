@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "client": "vite --host localhost",
+    "client:tailscale:a": "set VITE_API_URL=http://100.119.178.65:5000&& vite --host localhost",
+    "client:tailscale:b": "set VITE_API_URL=http://100.82.8.118:5000&& vite --host localhost",
     "build": "vite build",
     "preview": "vite preview --host localhost"
   },

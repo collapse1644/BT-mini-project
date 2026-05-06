@@ -11,14 +11,18 @@ import {
   Upload
 } from "lucide-react";
 
-const API = import.meta.env.VITE_API_URL;
+const API =
+  import.meta.env.VITE_API_URL ||
+  import.meta.env.VITE_API_BASE ||
+  window.localStorage.getItem("VITE_API_URL") ||
+  "http://localhost:5000";
 
 function getApiUrl(path) {
-  if (!API) {
-    throw new Error("Missing VITE_API_URL. Set it in frontend/.env to your backend Tailscale URL.");
-  }
-
   return `${API.replace(/\/+$/, "")}${path}`;
+}
+
+function describeFetchError(error) {
+  return `${error.message}. Backend URL: ${API}. Test it in your browser at ${getApiUrl("/test")}`;
 }
 
 async function parseJsonResponse(response) {
@@ -98,7 +102,7 @@ function App() {
       setNetwork(payload.network || null);
     } catch (requestError) {
       console.error("FETCH FAILED:", requestError);
-      setError(requestError.message);
+      setError(describeFetchError(requestError));
     } finally {
       setLoadingRuns(false);
     }
@@ -166,7 +170,7 @@ function App() {
       setActivePage("leaderboard");
     } catch (submitError) {
       console.error("FETCH FAILED:", submitError);
-      setError(submitError.message);
+      setError(describeFetchError(submitError));
     } finally {
       setSubmitting(false);
     }

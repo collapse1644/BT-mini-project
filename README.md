@@ -182,9 +182,29 @@ npm run server:tailscale:b
 For a frontend on another device, point Vite at the node you want to use:
 
 ```bash
-set VITE_API_BASE=http://100.119.178.65:5000
+set VITE_API_URL=http://100.119.178.65:5000
 npm run client
 ```
+
+Or create `frontend/.env`:
+
+```env
+VITE_API_URL=http://100.119.178.65:5000
+```
+
+On the other device, use:
+
+```env
+VITE_API_URL=http://100.82.8.118:5000
+```
+
+Before opening the React app, test the backend directly in the browser:
+
+```text
+http://100.119.178.65:5000/test
+```
+
+It should return JSON with `"ok": true`.
 
 You can add more peers at runtime from either side:
 

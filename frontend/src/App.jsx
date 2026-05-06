@@ -11,7 +11,15 @@ import {
   Upload
 } from "lucide-react";
 
-const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
+const API = import.meta.env.VITE_API_URL;
+
+function getApiUrl(path) {
+  if (!API) {
+    throw new Error("Missing VITE_API_URL. Set it in frontend/.env to your backend Tailscale URL.");
+  }
+
+  return `${API.replace(/\/+$/, "")}${path}`;
+}
 
 async function parseJsonResponse(response) {
   const text = await response.text();
@@ -81,7 +89,7 @@ function App() {
     setLoadingRuns(true);
     setError("");
     try {
-      const response = await fetch(`${API_BASE}/api/runs`);
+      const response = await fetch(getApiUrl("/api/runs"));
       const payload = await parseJsonResponse(response);
       if (!response.ok) {
         throw new Error(payload.message || "Could not load leaderboard");
@@ -89,7 +97,7 @@ function App() {
       setRuns(payload.runs || []);
       setNetwork(payload.network || null);
     } catch (requestError) {
-      console.error("FETCH ERROR:", requestError);
+      console.error("FETCH FAILED:", requestError);
       setError(requestError.message);
     } finally {
       setLoadingRuns(false);
@@ -101,9 +109,16 @@ function App() {
   }, [loadRuns]);
 
   useEffect(() => {
-    const events = new EventSource(`${API_BASE}/api/events`);
+    if (!API) {
+      return undefined;
+    }
+
+    const events = new EventSource(getApiUrl("/api/events"));
     events.addEventListener("run-submitted", () => loadRuns());
-    events.onerror = () => events.close();
+    events.onerror = (event) => {
+      console.error("FETCH FAILED:", event);
+      events.close();
+    };
     return () => events.close();
   }, [loadRuns]);
 
@@ -133,7 +148,7 @@ function App() {
         body.append("videoUrl", form.videoUrl);
       }
 
-      const response = await fetch(`${API_BASE}/api/submit-run`, {
+      const response = await fetch(getApiUrl("/api/submit-run"), {
         method: "POST",
         body
       });
@@ -150,7 +165,7 @@ function App() {
       await loadRuns();
       setActivePage("leaderboard");
     } catch (submitError) {
-      console.error("FETCH ERROR:", submitError);
+      console.error("FETCH FAILED:", submitError);
       setError(submitError.message);
     } finally {
       setSubmitting(false);

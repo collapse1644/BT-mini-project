@@ -17,22 +17,10 @@ const configuredUploadDir = process.env.UPLOAD_DIR || "uploads";
 const uploadDir = path.isAbsolute(configuredUploadDir)
   ? configuredUploadDir
   : path.resolve(backendRoot, configuredUploadDir);
-const allowedOrigins = new Set([
-  "http://localhost:5173",
-  "http://127.0.0.1:5173",
-  process.env.FRONTEND_URL,
-  ...(process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(",") : [])
-].filter(Boolean));
 
 app.use(
   cors({
-    origin(origin, callback) {
-      if (!origin || allowedOrigins.has(origin)) {
-        callback(null, true);
-        return;
-      }
-      callback(new Error(`CORS blocked origin: ${origin}`));
-    },
+    origin: true,
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true
   })
@@ -45,6 +33,13 @@ app.use("/uploads", express.static(uploadDir));
 app.post("/api/submit", (req, res) => {
   console.log("Request received:", req.body);
   res.json({ success: true });
+});
+
+app.get("/test", (_req, res) => {
+  res.json({
+    ok: true,
+    node: nodeBlockchain.getStatus()
+  });
 });
 
 app.use("/", nodeRouter);
